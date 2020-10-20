@@ -31,14 +31,9 @@ __global__ void rellenado( int *array) {
 	int id_thread 	= threadIdx.x;
 	int id_block 	= blockIdx.x;
 	//no usar for, apoyarse del no de bloques o el no de threads	
-	if (id_global < PRIMER_SEG){
-		array[id_global] = id_thread;
-	}
-	else if(id_global < SEGUNDO_SEG){
-		array[id_global] = id_block;
-	}
-	else
-		array[id_global] = id_global;
+	array[id_global] = id_thread;
+	array[id_global+24] = id_block;
+	array[id_global+48] = id_global;
 	
 }
 
@@ -68,29 +63,36 @@ for (i = 0; i < NUM_MATRICES; i++){
 	if(i == 0){
 		bloques	=	1;
 		hilos	=	24;
-		//~ rellenado<<1,24>>(dev_array);
+		rellenado<<<1,24>>>(dev_array);
 	}
 	else if( i == 1){
 		bloques	=	24;
 		hilos	=	1;
-		//~ rellenado<<bloques,hilos>>(dev_array);
+		rellenado<<<bloques,hilos>>>(dev_array);
 	}
 	else {
 		bloques	=	4;
 		hilos	=	6;
-		//~ rellenado<<bloques,hilos>>(dev_array);
+		rellenado<<<bloques,hilos>>>(dev_array);
 	}
-	printf("bloques %d hilos %d", bloques,hilos);
-	//~ rellenado<<bloques,hilos>>(dev_array);
+	printf("\nbloques %d hilos %d\n", bloques,hilos);
+	//copia de device a host
+	cudaMemcpy(host_x, dev_array, NUM_MATRICES*PROFUNDIDAD*sizeof(float),cudaMemcpyDeviceToHost);
+	printf("hilo\n");
+	for(int i = 0; i<PROFUNDIDAD; i++){
+		printf("%d \t",host_x[i]);
+	}
+	printf("\nbloque\n");
+	for(int i = 0; i<PROFUNDIDAD; i++){
+		printf("%d \t",host_x[i+24]);
+	}
+	printf("\ngloabal\n");
+	for(int i = 0; i<PROFUNDIDAD; i++){
+		printf("%d \t",host_x[i+48]);
+	}
+
 }
-rellenado<<NUM_MATRICES,PRIMER_SEG>> (dev_array);
-//~ add<<<N, 1>>> (dev_a, dev_b, dev_c);
-//copia de device a host
-cudaMemcpy(host_x, dev_array, NUM_MATRICES*PROFUNDIDAD*sizeof(float),cudaMemcpyDeviceToHost);
 
-// salida
-
-	
 cudaFree(dev_array);
 //~ free(host_x);
 printf("\nFin de Programa \n");
