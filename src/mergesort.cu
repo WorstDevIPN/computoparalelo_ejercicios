@@ -21,7 +21,7 @@
 #include <cuda_runtime.h>
 
 //definiciones
-#define N 	10 //
+#define N 	16 //
 
 __global__ void merge(float *lado_izq, float *lado_der, float *unido, int sizes) {
 	int i = 0;
@@ -133,13 +133,13 @@ int main(int argc, char** argv)
 		
 	//reserva al host
 	host_array	 = (float*)malloc(N*sizeof(float));
-	host_array_L = (float*)malloc(N*sizeof(float));
-	host_array_R = (float*)malloc(N*sizeof(float));
+	host_array_L = (float*)malloc(N/2*sizeof(float));
+	host_array_R = (float*)malloc(N/2*sizeof(float));
 
 	// reserva en el device
 	cudaMalloc( (void**)&dev_array, N*sizeof(float) );
-	cudaMalloc( (void**)&dev_array_L, N*sizeof(float) );
-	cudaMalloc( (void**)&dev_array_R, N*sizeof(float) );//*2
+	cudaMalloc( (void**)&dev_array_L, N/2*sizeof(float) );
+	cudaMalloc( (void**)&dev_array_R, N/2*sizeof(float) );//*2
 	check_CUDA_Error("Error en cudaMalloc\n");
 	
 	//rellenado de la matriz
@@ -156,11 +156,19 @@ int main(int argc, char** argv)
 		host_array_L[i] = host_array[i];
 		host_array_R[i] = host_array[N/2+i];		
 	}
+	printf("Valores a ordenar Derecha:\n");
+	for (i=0; i < N/2; i++){
+		printf("D[%d]:%.0f\t",i,host_array_R[i]);	
+	}
+	printf("\nValores a ordenar Izquierda:\n");
+	for (i=0; i < N/2; i++){
+		printf("I[%d]:%.0f\t",i,host_array_L[i]);	
+	}
 
 	// copia de datos a device
-	cudaMemcpy(dev_array_L, host_array_L, N*sizeof(float), 
+	cudaMemcpy(dev_array_L, host_array_L, N/2*sizeof(float), 
 		cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_array_R, host_array_R, N*sizeof(float), 
+	cudaMemcpy(dev_array_R, host_array_R, N/2*sizeof(float), 
 		cudaMemcpyHostToDevice);
 	check_CUDA_Error("Error en cudaMemcpy H2D\n");
 	
@@ -168,9 +176,9 @@ int main(int argc, char** argv)
 	//invocacion kernel
 	merge_sort<<<1,2>>>(dev_array_L, dev_array_R, N/2); // /2
 	//respaldo	
-	cudaMemcpy(host_array_L, dev_array_L, N*sizeof(float),
+	cudaMemcpy(host_array_L, dev_array_L, N/2*sizeof(float),
 		cudaMemcpyDeviceToHost);
-	cudaMemcpy(host_array_R, dev_array_R, N*sizeof(float),
+	cudaMemcpy(host_array_R, dev_array_R, N/2*sizeof(float),
 		cudaMemcpyDeviceToHost);
 	//
 	merge<<<1,1>>>(dev_array_L, dev_array_R, dev_array, N);//*2 
