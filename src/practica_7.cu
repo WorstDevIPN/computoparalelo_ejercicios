@@ -19,7 +19,7 @@
 #include <cuda_runtime.h>
 
 //definiciones
-#define NUM_HILOS	128
+#define NUM_HILOS	512
 
 __global__ void calcular_pi_shared(float *matriz_ppal) {
 	//reservado de memoria compartida de hilos
@@ -27,7 +27,7 @@ __global__ void calcular_pi_shared(float *matriz_ppal) {
 	int id_threadx 	= threadIdx.x ;
 	int hilo		= threadIdx.x +1;
 	//calculo de la casilla y sincroniza
-	array[id_threadx] = 1/(hilo*hilo);
+	array[id_threadx] = 1.0/(hilo*hilo);
 	__syncthreads();
 	//reduccion paralela para ir sumando terminos
 	int salto = NUM_HILOS/2;
@@ -49,7 +49,7 @@ __global__ void calcular_pi(float *matriz_ppal, float *arreglo) {
 	int id_threadx 	= threadIdx.x ;
 	int hilo		= threadIdx.x +1;
 	//calculo de la casilla y sincroniza
-	arreglo[id_threadx] = 1/(hilo*hilo);
+	arreglo[id_threadx] = 1.0/(hilo*hilo);
 	__syncthreads();
 	//reduccion paralela para ir sumando terminos
 	int salto = NUM_HILOS/2;
@@ -87,13 +87,22 @@ int main(int argc, char** argv)
 	// declaracion var host
 	float host_resultado;
 	
-	//Temporizacion
-	//~ cudaDeviceProp myGPU;
-	cudaEvent_t start, stop;
+	//Temporizacion y datos
+	cudaEvent_t start, start_share, stop, stop_share;
 	float elapsedTime;
-
+	
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
+	cudaEventCreate(&start_share);
+	cudaEventCreate(&stop_share);
+	
+	cudaDeviceProp myGPU;
+	cudaGetDeviceProperties( &myGPU, 0);
+	printf("Los datos del Dispositivo son:\n");
+	printf("Maximo numero de Hilos por bloque: %d\n", myGPU.maxThreadsPerBlock);
+	printf("Maximo tamño de memoria compartida: %zu\n", myGPU.sharedMemPerBlock/1024);
+	printf("Hilos emitidos: %d\n", NUM_HILOS);
+	
 	//var device
 	float *dev_matriz;
 	float *dev_matriz_global;
@@ -104,41 +113,42 @@ int main(int argc, char** argv)
 	
 	//invocacion kernel
 	cudaEventRecord(start,0);
-	
 	calcular_pi_shared<<<1,NUM_HILOS>>>(dev_matriz);
+	//parando cronometro
+	cudaEventRecord(stop,0);
+	cudaEventSynchronize(stop);
 	check_CUDA_Error("Error en calcular_pi\n");
-		//copia de device a host
+	//copia de device a host
 	cudaMemcpy(&host_resultado, dev_matriz, sizeof(float),
 		cudaMemcpyDeviceToHost);
 	check_CUDA_Error("Error en cudaMemcpy D2H\n");
 	//~ // salida	
 	printf("\nLa aproximacion de Pi por memoria compartida es: %.9f\n",sqrt(6*host_resultado));
+		
+	cudaEventElapsedTime(&elapsedTime, start, stop);
+	printf("\nTiempo transcurrido en Device : %.3f\n",elapsedTime);
+	
 	
 	cudaFree(dev_matriz);
-
 	cudaMalloc( (void**)&dev_matriz, sizeof(float) );
 	check_CUDA_Error("Error en cudaMalloc\n");
+	cudaEventRecord(start_share,0);
 	
 	calcular_pi<<<1,NUM_HILOS>>>(dev_matriz,dev_matriz_global);
+	
+	cudaEventRecord(stop_share,0);
+	cudaEventSynchronize(stop_share);
 	check_CUDA_Error("Error en calcular_pi\n");
-		//copia de device a host
+	//copia de device a host
 	cudaMemcpy(&host_resultado, dev_matriz, sizeof(float),
 		cudaMemcpyDeviceToHost);
 	check_CUDA_Error("Error en cudaMemcpy D2H\n");
-	//~ // salida	
+	// salida	
+	cudaEventElapsedTime(&elapsedTime, start_share, stop_share);
 	printf("\nLa aproximacion de Pi por memoria global es: %.9f\n",sqrt(6*host_resultado));
-	
-	
-	//parando cronometro
-	cudaEventRecord(stop,0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&elapsedTime, start, stop);
-	
-	
-	
 	printf("\nTiempo transcurrido en Device : %.3f\n",elapsedTime);
+	
 	//memory dump
-	cudaFree(dev_matriz);
 	cudaFree(dev_matriz);
 	cudaFree(dev_matriz_global);
 	//~ cudaFree(dev_matriz_ret);
