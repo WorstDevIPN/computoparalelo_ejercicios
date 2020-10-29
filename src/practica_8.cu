@@ -11,7 +11,7 @@
  * N por N elementos manejando el mismo no de hilos		*
  * 														*
  * compilacion con: 									*
- * nvcc practica_6.cu -o practica_6.o				 	*
+ * nvcc practica_8.cu -o practica_8.o				 	*
 *********************************************************/
 //librerias
 
